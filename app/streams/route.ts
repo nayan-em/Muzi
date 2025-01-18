@@ -38,4 +38,18 @@ const Post = async (req: NextRequest) => {
   }
 };
 
-export default Post;
+const Get = async (req: NextRequest) => {
+  // Fetch creatorId from NextRequest and verify it
+  const creatorId = req.nextUrl.searchParams.get("creatorId");
+
+  // Fetch all streams created by the creator
+  const streams = await prismaClient.stream.findMany({
+    where: {
+      userId: creatorId ?? "",
+    },
+  });
+
+  return NextResponse.json(streams);
+};
+
+export default { Post, Get };
