@@ -20,6 +20,8 @@ model Stream {
   type          StreamType
   url           String
   extractedId   String
+  title         String      @default("")
+  thumbnail     String      @default("")
   active        Boolean     @default(true)
   upvotes       Upvote[]
   userId        String

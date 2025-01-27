@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prismaClient } from "@/app/lib/db";
+
 const YT_REGEX =
   /^(?:(?:https?:)?\/\/)?(?:www\.)?(?:m\.)?(?:youtu(?:be)?\.com\/(?:v\/|embed\/|watch(?:\/|\?v=))|youtu\.be\/)((?:\w|-){11})(?:\S+)?$/;
 const ST_REGEX = new RegExp("^https://open.spotify.com/track/[w-]{22}?si=[w]{16}");
+
+const YT_API_KEY = process.env.YOUTUBE_API_KEY;
 
 const StreamSchema = z.object({
   creatorId: z.string(),
@@ -12,11 +15,9 @@ const StreamSchema = z.object({
 });
 
 const Post = async (req: NextRequest) => {
-  console.log("Nayan");
   try {
     // extract data from request
     const data = StreamSchema.parse(await req.json());
-    console.log(data);
 
     // validate url with regex
     const isYt = data.url.match(YT_REGEX);
@@ -27,13 +28,16 @@ const Post = async (req: NextRequest) => {
 
     // fetch id (everything after ?v=) from youtube url
     const extractedId = data.url.split("?v=")[1];
+    const { title, thumbnail } = await getYtMetadata(extractedId);
 
     const stream = await prismaClient.stream.create({
       data: {
-        userId: data.creatorId,
+        type: data.type,
         url: data.url,
         extractedId,
-        type: data.type,
+        title,
+        thumbnail,
+        userId: data.creatorId,
       },
     });
 
@@ -59,5 +63,21 @@ const Get = async (req: NextRequest) => {
 
   return NextResponse.json(streams);
 };
+
+async function getYtMetadata(extractedId: string) {
+  const metadataUrl =
+    "https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=" +
+    extractedId +
+    "&key=" +
+    YT_API_KEY;
+
+  const res = await fetch(metadataUrl);
+  const data = await res.json();
+
+  const title = data.items[0].snippet.title;
+  const thumbnail = data.items[0].snippet.thumbnails.high.url;
+
+  return { title, thumbnail };
+}
 
 export { Post as POST, Get as GET };
